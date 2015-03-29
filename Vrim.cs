@@ -4,6 +4,7 @@ namespace vrim
 {
 	class Vrim
 	{
+		private enum Modes {Insert, Command, Visual};
 		public static void Main (string[] args)
 		{
 			Console.WriteLine ("Entrypoint to vrim editor");
@@ -23,8 +24,7 @@ namespace vrim
 				else
 					Console.WriteLine(t.GetChar());
 			}
-			//Console.Write (t.Display(false));
-			Console.WriteLine((t.RegexSearch(@"Robinson")).Count);
+			Console.WriteLine ((t.RegexSearch (@"Robinson")).Count);
 
 		}
 	}

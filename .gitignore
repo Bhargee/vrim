@@ -36,4 +36,5 @@ sysinfo.txt
 
 # Added stuff
 bin/
+*.swp
 

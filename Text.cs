@@ -52,7 +52,7 @@ namespace vrim
 			return res;
 		}
 
-		public void Insert(string data)
+		public int Insert(string data)
 		{
 			if (point == buffer.Count) 
 				buffer.AddRange (data);
@@ -60,6 +60,7 @@ namespace vrim
 				buffer.InsertRange (point, data);
 
 			point += data.Length;
+			return point;
 		}
 
 		public int MovePoint(Direction d, int amount)
@@ -111,14 +112,19 @@ namespace vrim
 
 		public List<int> RegexSearch(string pattern)
 		{
-			Match m = Regex.Match (buffer.ToString(), pattern);
-			Console.WriteLine (m.Value);
-			List<int> res = new List<int> ();
-			while (m.Success) {
-				res.Add(m.Index);
-				m = m.NextMatch();
-			}
+			List<int> res = new List<int>();
+			Regex rgx = new Regex(pattern);
+
+			foreach (Match match in rgx.Matches(this.ToString()))
+				res.Add (match.Index);
+
 			return res;
+
+		}
+
+		public void Write() 
+		{
+			File.WriteAllText (this.filename, this.Display (false));
 		}
 	}
 }
