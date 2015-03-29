@@ -1,4 +1,5 @@
 using System;
+using vrim;
 
 namespace vrim
 {
@@ -8,7 +9,7 @@ namespace vrim
 		public static void Main (string[] args)
 		{
 			Console.WriteLine ("Entrypoint to vrim editor");
-			Text t = new Text ("/Users/Bhargava/Projects/Vrim/test.txt");
+			Buffer t = new Buffer ("/Users/Bhargava/Projects/Vrim/test.txt");
 			while (true) {
 				string line = Console.ReadLine();
 				if (line.Contains("q"))
@@ -21,10 +22,17 @@ namespace vrim
 					t.MovePoint(Text.Direction.Down, 1);
 				else if (line.Equals("h"))
 					t.MovePoint(Text.Direction.Left, 1);
+				else if (line.Equals("w"))
+					Console.WriteLine(t.GetWord());
 				else
 					Console.WriteLine(t.GetChar());
 			}
 			Console.Write (t.Display (false));
+			/*Application.Init (false);
+			Frame f = new Frame ("Test Frame");
+			f.Add (new Label (0, 0, "Hello World"));
+			Application.Run (f);*/
+
 		}
 	}
 }

@@ -17,8 +17,13 @@ namespace vrim
 		private GapBuffer<char> buffer;
 		private string filename =  null;
 		private int point = 0;
+		private bool dirty = false; // set to true when the buffer is edited, and adjust actions accordingly
+		private string displayCache = null;
 
 		private int linewidth = 80;
+		public int Linewidth {
+			set { this.linewidth = value;}
+		}
 
 		public enum Direction {Up, Left, Right, Down};
 
@@ -60,6 +65,7 @@ namespace vrim
 				buffer.InsertRange (point, data);
 
 			point += data.Length;
+			dirty = true;
 			return point;
 		}
 
@@ -85,13 +91,31 @@ namespace vrim
 			return point;
 		}
 
-		public char GetChar() 
+		/*public char GetChar() 
 		{
 			return buffer [this.point];
 		}
+		// TODO this is O(word_len), can be better, look @ ToString
+		public string GetWord()
+		{
+			List<char> word = new List<char>();
+			int i = point;
+			if (buffer [i] == ' ') {
+				while (buffer[++i] == ' ')
+					;
+			}
+			while (buffer[i] != ' ') {
+				word.Add (buffer [i]);
+				i++;
+			}
+			return new string (word.ToArray ());
+		}*/
 
 		public string Display(bool windows) 
 		{
+			if (!dirty && displayCache != null) {
+				return displayCache;
+			}
 			string text = this.ToString ();
 			List<string> lines = new List<string>();
 			if (windows)
@@ -105,7 +129,9 @@ namespace vrim
 					lines.Insert(i+1, oldline.Substring(linewidth, oldline.Length-1));
 				}
 			}
-			return String.Join("\n", lines);
+			displayCache = String.Join ("\n", lines);
+			dirty = false;
+			return displayCache;
 		}
 
 		public List<int> RegexSearch(string pattern)
@@ -117,12 +143,12 @@ namespace vrim
 				res.Add (match.Index);
 
 			return res;
-
 		}
 
 		public void Write() 
 		{
 			File.WriteAllText (this.filename, this.Display (false));
+			//dirty = false;
 		}
 	}
 }

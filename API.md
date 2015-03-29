@@ -6,7 +6,14 @@
 Represents each open buffer, provides a basic API for text access and
 manipulation (insert, remove, move) via the **point** (the cursor). All
 access/manipulation methods on Text access text at the point. Text also handles
-regex search
+regex search. The actual API should be an answer to 'what do we want to do with
+a buffer'. Currently it is - 
++ insert
++ regex search
++ write to file
++ display (returns "displayable" version of buffer contents, maybe should be
+moved out)
++ point motion
 
 ### Vrim.cs
 Not sure what this should actually do besides be an entrypoint to the editor
