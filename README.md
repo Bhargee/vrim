@@ -1,7 +1,7 @@
 # TODO
 
 ## Editor Component
-+ Regex search
++ ~~Regex search~~
 + fix display
 + editor frontend (modular interface for modes/char sequences)
 
