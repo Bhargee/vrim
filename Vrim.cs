@@ -24,8 +24,7 @@ namespace vrim
 				else
 					Console.WriteLine(t.GetChar());
 			}
-			Console.WriteLine ((t.RegexSearch (@"Robinson")).Count);
-
+			Console.Write (t.Display (false));
 		}
 	}
 }

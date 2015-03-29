@@ -18,7 +18,7 @@ namespace vrim
 		private string filename =  null;
 		private int point = 0;
 
-		private static int linewidth = 80;
+		private int linewidth = 80;
 
 		public enum Direction {Up, Left, Right, Down};
 
@@ -92,22 +92,20 @@ namespace vrim
 
 		public string Display(bool windows) 
 		{
-			int added = 0;
-			char newline = '\n';
+			string text = this.ToString ();
+			List<string> lines = new List<string>();
 			if (windows)
-				newline = '\r';
-			int num_newlines = buffer.Count / linewidth;
-			char[] res = new char[buffer.Count + num_newlines];
-			for (int i = 0; i < buffer.Count-1; i++) {
-				if ((i % linewidth) == 0) {
-					res[i+added] = newline;
-					added++;
-					res[i+added] = buffer[i];
+				lines.AddRange (Regex.Split (text, "\r\n"));
+			else
+				lines.AddRange(text.Split('\n'));
+			for (int i = 0; i < lines.Count; i++) {
+				if(lines[i].Length >= linewidth) {
+					string oldline = lines[i];
+					lines[i] = oldline.Substring(0, linewidth - 1);
+					lines.Insert(i+1, oldline.Substring(linewidth, oldline.Length-1));
 				}
-				else
-					res[i+added] = buffer[i];
 			}
-			return new string(res);
+			return String.Join("\n", lines);
 		}
 
 		public List<int> RegexSearch(string pattern)
