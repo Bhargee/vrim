@@ -8,11 +8,11 @@ namespace vrim
 {
 
 	/* 
-	 * Class Text manages the "backend" of vrim, exposing an API for basic text manipulation
+	 * Class Buffer manages the "backend" of vrim, exposing an API for basic text manipulation
 	 * (moving the point, entering chars, deleting chars, etc)
 	 * there is a bijection between open files and Text objects
 	 */
-	public class Text
+	public class Buffer
 	{
 		private GapBuffer<char> buffer;
 		private string filename =  null;
@@ -32,24 +32,24 @@ namespace vrim
 			set { this.filename = value;}
 		}
 
-		public int Point {
+		/*public int Point {
 			get { return this.point;}
 			set { this.point = value;}
-		}
+		}*/
 
-		public Text ()
+		public Buffer ()
 		{
 			buffer = new GapBuffer<char>();
 		}
 
-		public Text (String filename) 
+		public Buffer (String filename) 
 		{
 			buffer = new GapBuffer<char> ();
 			buffer.InsertRange (point, File.ReadAllText (filename));  
 			this.filename = filename;
 		}
 
-		public override string ToString ()
+		private string AsString ()
 		{
 			char [] res_array = new char[buffer.Count];
 			buffer.CopyTo (res_array, 0);
@@ -65,6 +65,13 @@ namespace vrim
 				buffer.InsertRange (point, data);
 
 			point += data.Length;
+			dirty = true;
+			return point;
+		}
+
+		public int Remove(int num) 
+		{
+			buffer.RemoveRange (point, num);
 			dirty = true;
 			return point;
 		}
@@ -116,7 +123,7 @@ namespace vrim
 			if (!dirty && displayCache != null) {
 				return displayCache;
 			}
-			string text = this.ToString ();
+			string text = this.AsString ();
 			List<string> lines = new List<string>();
 			if (windows)
 				lines.AddRange (Regex.Split (text, "\r\n"));
@@ -139,7 +146,7 @@ namespace vrim
 			List<int> res = new List<int>();
 			Regex rgx = new Regex(pattern);
 
-			foreach (Match match in rgx.Matches(this.ToString()))
+			foreach (Match match in rgx.Matches(this.AsString()))
 				res.Add (match.Index);
 
 			return res;
@@ -147,8 +154,10 @@ namespace vrim
 
 		public void Write() 
 		{
+			// sanity check, display needs to be updated before we write to disk
+			if (dirty)
+				return;
 			File.WriteAllText (this.filename, this.Display (false));
-			//dirty = false;
 		}
 	}
 }

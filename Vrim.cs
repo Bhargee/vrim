@@ -1,5 +1,4 @@
 using System;
-using vrim;
 
 namespace vrim
 {
@@ -15,17 +14,17 @@ namespace vrim
 				if (line.Contains("q"))
 					break;
 				else if (line.Equals("l"))
-					t.MovePoint(Text.Direction.Right, 1);
+					t.MovePoint(Buffer.Direction.Right, 1);
 				else if (line.Equals("k"))
-					t.MovePoint(Text.Direction.Up, 1);
+					t.MovePoint(Buffer.Direction.Up, 1);
 				else if (line.Equals("j"))
-					t.MovePoint(Text.Direction.Down, 1);
+					t.MovePoint(Buffer.Direction.Down, 1);
 				else if (line.Equals("h"))
-					t.MovePoint(Text.Direction.Left, 1);
-				else if (line.Equals("w"))
+					t.MovePoint(Buffer.Direction.Left, 1);
+				/*else if (line.Equals("w"))
 					Console.WriteLine(t.GetWord());
 				else
-					Console.WriteLine(t.GetChar());
+					Console.WriteLine(t.GetChar());*/
 			}
 			Console.Write (t.Display (false));
 			/*Application.Init (false);
