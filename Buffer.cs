@@ -10,7 +10,7 @@ namespace vrim
 	/* 
 	 * Class Buffer manages the "backend" of vrim, exposing an API for basic text manipulation
 	 * (moving the point, entering chars, deleting chars, etc)
-	 * there is a bijection between open files and Text objects
+	 * there is a bijection between open files and Buffer objects
 	 */
 	public class Buffer
 	{
@@ -49,7 +49,8 @@ namespace vrim
 			this.filename = filename;
 		}
 
-		private string AsString ()
+		// Public API
+		public string AsString ()
 		{
 			char [] res_array = new char[buffer.Count];
 			buffer.CopyTo (res_array, 0);
@@ -75,8 +76,71 @@ namespace vrim
 			dirty = true;
 			return point;
 		}
+		public List<int> RegexSearch(string pattern)
+		{
+			List<int> res = new List<int>();
+			Regex rgx = new Regex(pattern);
+			
+			foreach (Match match in rgx.Matches(this.AsString()))
+				res.Add (match.Index);
+			
+			return res;
+		}
+		
+		public int BufferEnd()
+		{
+			point = buffer.Count - 1;
+			return point;
+		}
+		
+		public void BufferStart()
+		{
+			point = 0;
+		}
+		
+		public int LineEnd()
+		{
+			point = (linewidth * (int)(Math.Ceiling ((double)point / linewidth))) - 1;
+			return point;
+		}
+		
+		public int LineStart()
+		{
+			point = linewidth * (int)(Math.Floor ((double) point / linewidth));
+			return point;
+		}
+		
+		// TODO need to signal if write fails because of dirty bit or nil filename
+		public void Write() 
+		{
+			// sanity check, display needs to be updated before we write to disk
+			if (dirty || filename == null)
+				return;
+			File.WriteAllText (this.filename, this.AsString());
+		}
 
-		public int MovePoint(Direction d, int amount)
+		public int MovePointUp(int amount)
+		{
+			return MovePoint (Direction.Up, amount);
+		}
+
+		public int MovePointRight(int amount)
+		{
+			return MovePoint (Direction.Right, amount);
+		}
+
+		public int MovePointDown(int amount)
+		{
+			return MovePoint (Direction.Down, amount);
+		}
+
+		public int MovePointLeft(int amount)
+		{
+			return MovePoint (Direction.Left, amount);
+		}
+		//Private helpsers
+
+		private int MovePoint(Direction d, int amount)
 		{
 			if (d == Direction.Up) {
 				if ((point - (amount * linewidth)) >= 0) {
@@ -98,27 +162,8 @@ namespace vrim
 			return point;
 		}
 
-		/*public char GetChar() 
-		{
-			return buffer [this.point];
-		}
-		// TODO this is O(word_len), can be better, look @ ToString
-		public string GetWord()
-		{
-			List<char> word = new List<char>();
-			int i = point;
-			if (buffer [i] == ' ') {
-				while (buffer[++i] == ' ')
-					;
-			}
-			while (buffer[i] != ' ') {
-				word.Add (buffer [i]);
-				i++;
-			}
-			return new string (word.ToArray ());
-		}*/
-
-		public string Display(bool windows) 
+		//TODO move to display component
+		/*public string Display(bool windows) 
 		{
 			if (!dirty && displayCache != null) {
 				return displayCache;
@@ -139,26 +184,8 @@ namespace vrim
 			displayCache = String.Join ("\n", lines);
 			dirty = false;
 			return displayCache;
-		}
+		}*/
 
-		public List<int> RegexSearch(string pattern)
-		{
-			List<int> res = new List<int>();
-			Regex rgx = new Regex(pattern);
-
-			foreach (Match match in rgx.Matches(this.AsString()))
-				res.Add (match.Index);
-
-			return res;
-		}
-
-		public void Write() 
-		{
-			// sanity check, display needs to be updated before we write to disk
-			if (dirty)
-				return;
-			File.WriteAllText (this.filename, this.Display (false));
-		}
 	}
 }
 
