@@ -1,3 +1,6 @@
 {
-    "j":"MovePointDown"
+    "j":"MovePointDown",
+    "k":"MovePointUp",
+    "h":"MovePointLeft",
+    "l":"MovePointRight"
 }

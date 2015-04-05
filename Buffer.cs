@@ -31,12 +31,7 @@ namespace vrim
 			get { return this.filename;}
 			set { this.filename = value;}
 		}
-
-		/*public int Point {
-			get { return this.point;}
-			set { this.point = value;}
-		}*/
-
+			
 		public Buffer ()
 		{
 			buffer = new GapBuffer<char>();

@@ -13,7 +13,7 @@ namespace vrim
 	public sealed class Frontend
 	{
 		private static Frontend instance = null;
-		private string configFilePath = "/Users/Bhargava/Projects/vrim/config.json";
+		private string configFilePath = "/home/bhargava/dev/class/vrim/config.json";
 		private Dictionary<string, MethodInfo> keymap;
 
 		private Frontend()
