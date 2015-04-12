@@ -80,16 +80,21 @@ namespace vrim
 
 		public void Undo()
 		{
-			PieceRange stackTop = undoStack.Pop ();
-			Piece before = stackTop.first.prev;
-			Piece after = stackTop.last.next;
-			PieceRange toReplace = new PieceRange (before.next, after.prev, false);
-			SwapPieceRanges (toReplace, stackTop, false);
+			UndoRedo (undoStack);
 		}
 
 		public void Redo()
 		{
+			UndoRedo (redoStack);
+		}
 
+		private void UndoRedo(Stack<PieceRange> stack)
+		{
+			PieceRange stackTop = stack.Pop ();
+			Piece before = stackTop.first.prev;
+			Piece after = stackTop.last.next;
+			PieceRange toReplace = new PieceRange (before.next, after.prev, false);
+			SwapPieceRanges (toReplace, stackTop, false);
 		}
 
 		public void PrintContentsTesting()
