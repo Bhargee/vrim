@@ -81,14 +81,15 @@ namespace vrim
 		public void Undo()
 		{
 			PieceRange stackTop = undoStack.Pop ();
-			if (stackTop.boundary) {
-				// TODO
-			} else {
-				Piece before = stackTop.first.prev;
-				Piece after = stackTop.last.next;
-				PieceRange toReplace = new PieceRange (before.next, after.prev, false);
-				SwapPieceRanges (toReplace, stackTop, false);
-			}
+			Piece before = stackTop.first.prev;
+			Piece after = stackTop.last.next;
+			PieceRange toReplace = new PieceRange (before.next, after.prev, false);
+			SwapPieceRanges (toReplace, stackTop, false);
+		}
+
+		public void Redo()
+		{
+
 		}
 
 		public void PrintContentsTesting()
@@ -105,19 +106,25 @@ namespace vrim
 
 		private void SwapPieceRanges(PieceRange origRange, PieceRange newRange, bool undo)
 		{
+		
 			Piece before = origRange.first.prev;
 			Piece after = origRange.last.next;
 
 			if (origRange.boundary) {
 				before = origRange.first;
 				after = origRange.first.next;
+				Piece clone = new Piece (origRange.first.offset, origRange.first.length, origRange.first.inFileBuf);
+				clone.next = origRange.first.next;
+				clone.prev = origRange.first.prev;
 				Patch (before, newRange.first, after);
+				origRange = new PieceRange (clone, clone, true);
 			} else {
 				before.next = newRange.first;
 				newRange.first.prev = before;
 				newRange.last.next = after;
 				after.prev = newRange.last;
 			}
+
 			if (undo)
 				undoStack.Push (origRange);
 			else
