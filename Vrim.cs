@@ -15,9 +15,6 @@ namespace vrim
 			PieceChain p = new PieceChain (fileContents);
 			p.PrintContentsTesting ();
 			Console.WriteLine ("");
-			p.Insert (fileContents.Length-1, "FUCKTHEPOLICE");
-			p.Insert (18, "DUCKDUCKGO");
-			p.PrintContentsTesting ();
 			Console.WriteLine ("it works! maybe...");
 		}
 	}

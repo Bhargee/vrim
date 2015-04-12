@@ -78,6 +78,19 @@ namespace vrim
 
 		}
 
+		public void Undo()
+		{
+			PieceRange stackTop = undoStack.Pop ();
+			if (stackTop.boundary) {
+				// TODO
+			} else {
+				Piece before = stackTop.first.prev;
+				Piece after = stackTop.last.next;
+				PieceRange toReplace = new PieceRange (before.next, after.prev, false);
+				SwapPieceRanges (toReplace, stackTop, false);
+			}
+		}
+
 		public void PrintContentsTesting()
 		{
 			for (Piece curr = head.next; curr != tail; curr = curr.next) {
