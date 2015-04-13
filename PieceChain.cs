@@ -265,6 +265,23 @@ namespace vrim
 			Assert.AreEqual ("abc12345de", chain.GetContentsTesting ());
 		}
 
+		[Test]
+		public void FullPieceChainBoundaryInsertBack()
+		{
+			PieceChain chain = new PieceChain (new char[] { 'a', 'b', 'c', 'd', 'e' });
+			chain.Insert (5, "12345");
+			Assert.AreEqual ("12345abcde", chain.GetContentsTesting ());
+		}
+
+		[Test]
+		public void FullPieceChainBoundaryInsertFront()
+		{
+			PieceChain chain = new PieceChain (new char[] { 'a', 'b', 'c', 'd', 'e' });
+			chain.Insert (0, "12345");
+			Assert.AreEqual ("12345abcde", chain.GetContentsTesting ());
+		}
+
+
 	}
 		
 }
