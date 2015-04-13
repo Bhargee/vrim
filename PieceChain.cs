@@ -1,7 +1,7 @@
 ﻿using System;
-using System.IO;
-using System.Linq;
+using System.Text;
 using System.Collections.Generic;
+using NUnit.Framework;
 
 namespace vrim
 {
@@ -97,16 +97,18 @@ namespace vrim
 			SwapPieceRanges (toReplace, stackTop, false);
 		}
 
-		public void PrintContentsTesting()
+		public string PrintContentsTesting()
 		{
+			StringBuilder sb = new StringBuilder ("");
 			for (Piece curr = head.next; curr != tail; curr = curr.next) {
 				if (curr.inFileBuf) {
 					for (int i = 0; i < curr.length; i++)
-						Console.Write (fileBuf [curr.offset + i]);
+						sb.Append ((fileBuf [curr.offset + i]));
 				} else {
-					Console.Write (addBuf[curr.offset]);
+					sb.Append ((addBuf [curr.offset]));
 				}
 			}
+			return sb.ToString ();
 		}
 
 		private void SwapPieceRanges(PieceRange origRange, PieceRange newRange, bool undo)
@@ -147,7 +149,7 @@ namespace vrim
 
 		private bool IsAcceptablePos(int pos)
 		{
-			return (pos >= 0 && pos < numChars);
+			return (pos >= 0 && pos <= numChars);
 		}
 
 		private Tuple<Piece, int, bool> PieceFromPos(int pos)
@@ -162,10 +164,9 @@ namespace vrim
 				currPos += curr.length;
 			}
 
-			return null;
+			return new Tuple<Piece, int, bool> (head, 0, true);
 
 		}
-
 			
 		private class PieceRange
 		{
@@ -207,6 +208,18 @@ namespace vrim
 				next = null;
 				prev = null;
 			}
+		}
+	}
+	[TestFixture]
+	public class PieceChainTest
+	{
+		[Test]
+		public void EmptyPieceChainInsertAtStart()
+		{
+			PieceChain chain = new PieceChain ();
+			string inserted = "I am not a number, I am a free man!";
+			chain.Insert (0, inserted);
+			Assert.AreEqual (chain.PrintContentsTesting (), inserted);
 		}
 	}
 		
