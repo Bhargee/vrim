@@ -61,7 +61,7 @@ namespace vrim
 			if (isBoundary) {
 				Piece insertedPiece = new Piece (addBuf.Count, addition.Length, false);
 				PieceRange newRange = new PieceRange (insertedPiece, insertedPiece, false);
-				PieceRange origRange = new PieceRange (currPiece, currPiece, true);
+				PieceRange origRange = new PieceRange (currPiece, currPiece.next, true);
 				SwapPieceRanges (origRange, newRange, true);
 			} else {
 				Piece insertFirst = new Piece(currPiece.offset, pos - currPos, currPiece.inFileBuf);
@@ -91,13 +91,18 @@ namespace vrim
 		private void UndoRedo(Stack<PieceRange> stack)
 		{
 			PieceRange stackTop = stack.Pop ();
+			if (stackTop.boundary) {
+				PieceRange boundary = new PieceRange (stackTop.first, stackTop.last, true);
+				SwapPieceRanges (boundary, stackTop, false);
+				return;
+			}
 			Piece before = stackTop.first.prev;
 			Piece after = stackTop.last.next;
 			PieceRange toReplace = new PieceRange (before.next, after.prev, false);
 			SwapPieceRanges (toReplace, stackTop, false);
 		}
 
-		public string PrintContentsTesting()
+		public string GetContentsTesting()
 		{
 			StringBuilder sb = new StringBuilder ("");
 			for (Piece curr = head.next; curr != tail; curr = curr.next) {
@@ -113,16 +118,15 @@ namespace vrim
 
 		private void SwapPieceRanges(PieceRange origRange, PieceRange newRange, bool undo)
 		{
-		
 			Piece before = origRange.first.prev;
 			Piece after = origRange.last.next;
 
 			if (origRange.boundary) {
 				before = origRange.first;
-				after = origRange.first.next;
+				after = origRange.last;
 				Piece clone = new Piece (origRange.first.offset, origRange.first.length, origRange.first.inFileBuf);
 				clone.next = origRange.first.next;
-				clone.prev = origRange.first.prev;
+				clone.prev = origRange.last.prev;
 				Patch (before, newRange.first, after);
 				origRange = new PieceRange (clone, clone, true);
 			} else {
@@ -219,8 +223,48 @@ namespace vrim
 			PieceChain chain = new PieceChain ();
 			string inserted = "I am not a number, I am a free man!";
 			chain.Insert (0, inserted);
-			Assert.AreEqual (chain.PrintContentsTesting (), inserted);
+			Assert.AreEqual (chain.GetContentsTesting (), inserted);
 		}
+
+		[Test]
+		public void EmptyPieceChainInsertAndUndo()
+		{
+			PieceChain chain = new PieceChain ();
+			string inserted = "I am not a number, I am a free man!";
+			chain.Insert (0, inserted);
+			chain.Undo ();
+			Assert.AreEqual (chain.GetContentsTesting(), "");
+			chain.Redo ();
+			Assert.AreEqual (chain.GetContentsTesting (), inserted);
+		}
+
+		[Test]
+		public void FullPieceChainInsertAtStart()
+		{
+			PieceChain chain = new PieceChain (new char[] { 'a', 'b', 'c', 'd', 'e' });
+			chain.Insert (0, "12345");
+			Assert.AreEqual (chain.GetContentsTesting (), "12345abcde");
+		}
+
+		[Test]
+		public void FullPieceChainInsertAndUndo()
+		{
+			PieceChain chain = new PieceChain (new char[] { 'a', 'b', 'c', 'd', 'e' });
+			chain.Insert (3, "12345");
+			chain.Undo ();
+			Assert.AreEqual ("abcde", chain.GetContentsTesting ());
+		}
+
+		[Test]
+		public void FullPieceChainInsertUndoRedo()
+		{
+			PieceChain chain = new PieceChain (new char[] { 'a', 'b', 'c', 'd', 'e' });
+			chain.Insert (3, "12345");
+			chain.Undo ();
+			chain.Redo ();
+			Assert.AreEqual ("abc12345de", chain.GetContentsTesting ());
+		}
+
 	}
 		
 }
