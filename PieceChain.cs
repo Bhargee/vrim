@@ -11,7 +11,7 @@ namespace vrim
 		private List<string> addBuf;
 		private Stack<PieceRange> undoStack;
 		private Stack<PieceRange> redoStack;
-		private int numChars = 0;
+		private int textLength = 0;
 
 		private Piece head, tail;
 
@@ -32,9 +32,6 @@ namespace vrim
 			fileBuf = origFile;
 			head = new Piece (0, 0, false);
 			tail = new Piece (0, 0, false);
-			head.next = tail;
-			tail.prev = head;
-
 			Piece origPiece = new Piece (0, fileBuf.Length, true);
 			head.next = origPiece;
 			origPiece.prev = head;
@@ -42,163 +39,227 @@ namespace vrim
 			tail.prev = origPiece;
 
 			addBuf = new List<string> ();
-			numChars = fileBuf.Length;
+			textLength = fileBuf.Length;
 
 			undoStack = new Stack<PieceRange> ();
 			redoStack = new Stack<PieceRange> ();
 
 		}
 
-		public void Insert(int pos, string addition)
+		public bool Insert(int pos, string toInsert)
 		{
-			if (!IsAcceptablePos(pos))
-				return;
-			numChars += addition.Length;
-			Tuple<Piece, int, bool> pieceAndPos = PieceFromPos (pos);
-			bool isBoundary = pieceAndPos.Item3;
-			Piece currPiece = pieceAndPos.Item1;
-			int currPos = pieceAndPos.Item2;
-			if (isBoundary) {
-				Piece insertedPiece = new Piece (addBuf.Count, addition.Length, false);
-				PieceRange newRange = new PieceRange (insertedPiece, insertedPiece, true);
-				PieceRange origRange = new PieceRange (currPiece.prev, currPiece, true);
-				SwapPieceRanges (origRange, newRange, true);
+			if (pos > textLength)
+				return false;
+
+			Tuple<Piece, int> pp = PieceFromPos (pos);
+			if (pp == null)
+				return false;
+				
+			Piece piece = pp.Item1;
+			int piecePos = pp.Item2;
+			int insOffset = pos - piecePos;
+
+			addBuf.Add (toInsert);
+			PieceRange oldRange;
+
+			// general case #1 - inserting at boundary
+			if (insOffset == 0) {
+				oldRange = PieceRange.InitUndo (pos, toInsert.Length);
+				oldRange.PieceBoundary (piece.prev, piece);
+				PieceRange newRange = new PieceRange (pos);
+				newRange.Append (new Piece (addBuf.Count - 1, toInsert.Length, false));
+				SwapPieceRange (oldRange, newRange);
 			} else {
-				Piece insertFirst = new Piece(currPiece.offset, pos - currPos, currPiece.inFileBuf);
-				Piece insertSecond = new Piece(addBuf.Count, addition.Length, false);
-				Piece insertThird = new Piece(currPiece.offset + insertFirst.length, currPiece.length - insertFirst.length,currPiece.inFileBuf);
-				Patch (insertFirst, insertSecond, insertThird);
-
-				PieceRange newRange = new PieceRange (insertFirst, insertThird, false);
-				PieceRange oldRange = new PieceRange (currPiece, currPiece, false);
-				SwapPieceRanges (oldRange, newRange, true);
-
+				oldRange = PieceRange.InitUndo (pos, toInsert.Length);
+				oldRange.Append (piece);
+				PieceRange newRange = new PieceRange (pos);
+				newRange.Append (new Piece (piece.offset, insOffset, true));
+				newRange.Append (new Piece (addBuf.Count - 1, toInsert.Length, false));
+				newRange.Append (new Piece (piece.offset + insOffset, piece.length - insOffset, true));
+				SwapPieceRange (oldRange, newRange);
 			}
-			addBuf.Add(addition);
+			undoStack.Push (oldRange);
+			textLength += toInsert.Length;
+			return true;
 
 		}
 
-		public void Undo()
+		public bool Undo()
 		{
-			UndoRedo (undoStack);
+			return UndoRedo (undoStack, redoStack);
 		}
 
-		public void Redo()
+		public bool Redo()
 		{
-			UndoRedo (redoStack);
+			return UndoRedo (redoStack, undoStack);
 		}
 
-		private void UndoRedo(Stack<PieceRange> stack)
+		private bool UndoRedo(Stack<PieceRange> src, Stack<PieceRange> dest)
 		{
-			PieceRange stackTop = stack.Pop ();
-			if (stackTop.boundary) {
-				PieceRange boundary = new PieceRange (stackTop.first.prev, stackTop.last, true);
-				SwapPieceRanges (boundary, stackTop, false);
-				return;
+			if (src.Count == 0)
+				return false;
+
+			do {
+				PieceRange toRestore = src.Pop ();
+				dest.Push (toRestore);
+
+				bool undoOrRedo = (src == undoStack);
+
+				RestorePieceRange (toRestore, undoOrRedo);
+			} while (src.Count != 0);
+
+			return true;
+		}
+
+		private void RestorePieceRange(PieceRange toRestore, bool undoOrRedo)
+		{
+			if(toRestore.boundary) {
+				Piece first = toRestore.first.next;
+				Piece last = toRestore.last.prev;
+
+				// unlink pieces from main chain
+				toRestore.first.next = toRestore.last;
+				toRestore.last.prev = toRestore.first;
+				// store piecerange we just removed
+				toRestore.first = first;
+				toRestore.last = last;
+				toRestore.boundary = true;
+			} else {
+				Piece first = toRestore.first.prev;
+				Piece last = toRestore.last.next;
+				// are we moving into an "empty" region (like between two pieces)?
+				if (first.next == last) {
+					// move old pieces back into old positions
+					first.next = toRestore.first;
+					last.prev = toRestore.last;
+					// store the range we just removed
+					toRestore.first = first;
+					toRestore.last = last;
+					toRestore.boundary = true;
+				}
+				// we are replacing a range of pieces, so swap that range with the top of our undo stack
+				else {
+					// find the range in the chain
+					first = first.next;
+					last = last.prev;
+					// unlink the pieces from the main chain
+					first.prev.next = toRestore.first;
+					last.next.prev = toRestore.last;
+					//store the range we just removed
+					toRestore.first = first;
+					toRestore.last = last;
+					toRestore.boundary = false;
+				}
 			}
-			Piece before = stackTop.first.prev;
-			Piece after = stackTop.last.next;
-			PieceRange toReplace = new PieceRange (before.next, after.prev, false);
-			SwapPieceRanges (toReplace, stackTop, false);
+			// TODO update length
+		}
+
+		private void SwapPieceRange(PieceRange oldRange, PieceRange newRange)
+		{
+			if (oldRange.boundary) {
+				if (!newRange.boundary) {
+					oldRange.first.next = newRange.first;
+					oldRange.last.prev = newRange.last;
+					newRange.first.prev = oldRange.first;
+					newRange.last.next = oldRange.last;
+				}
+			} else {
+				if (newRange.boundary) {
+					oldRange.first.prev.next = oldRange.last.next;
+					oldRange.last.next.prev = oldRange.first.prev;
+				} else {
+					oldRange.first.prev.next = newRange.first;
+					oldRange.last.next.prev = newRange.last;
+					newRange.first.prev = oldRange.first.prev;
+					newRange.last.next = oldRange.last.next;
+				}
+			}
+		}
+
+		private Tuple<Piece, int> PieceFromPos(int pos)
+		{
+			Piece currPiece;
+			int currPos = 0;
+
+			for (currPiece = head.next; currPiece.next != null; currPiece = currPiece.next) {
+				if (pos >= currPos && pos < currPos + currPiece.length) {
+					return new Tuple<Piece, int> (currPiece, currPos);
+				}
+				currPos += currPiece.length;
+			}
+			// insert at tail
+			if (currPiece != null && pos == currPos) {
+				return new Tuple<Piece, int> (currPiece, currPos);
+			}
+
+			return null;
 		}
 
 		public string GetContentsTesting()
 		{
 			StringBuilder sb = new StringBuilder ("");
-			for (Piece curr = head.next; curr != tail && curr != null; curr = curr.next) {
+			Piece curr;
+			for (curr = head.next; curr.next != null; curr = curr.next) {
 				if (curr.inFileBuf) {
-					for (int i = 0; i < curr.length; i++)
-						sb.Append ((fileBuf [curr.offset + i]));
+					for (int i = 0; i < curr.length; i++) {
+						sb.Append (fileBuf [curr.offset + i]);
+					}
 				} else {
-					sb.Append ((addBuf [curr.offset]));
+					sb.Append (addBuf [curr.offset]);
 				}
 			}
 			return sb.ToString ();
 		}
-
-		private void SwapPieceRanges(PieceRange origRange, PieceRange newRange, bool undo)
-		{
-			Piece before = origRange.first.prev;
-			Piece after = origRange.last.next;
-
-			if (origRange.boundary) {
-				before = origRange.first;
-				after = origRange.last;
-				Piece cloneBefore = new Piece (before.offset, before.length, before.inFileBuf);
-				Piece cloneAfter = new Piece (after.offset, after.length, after.inFileBuf);
-				cloneBefore.next = cloneAfter;
-				cloneAfter.prev = cloneBefore;
-				cloneBefore.prev = before.prev;
-				cloneAfter.next = after.next;
-				Patch (before, newRange.first, after);
-				origRange = new PieceRange (cloneBefore, cloneAfter, true);
-			} else {
-				before.next = newRange.first;
-				newRange.first.prev = before;
-				newRange.last.next = after;
-				after.prev = newRange.last;
-			}
-
-			if (undo)
-				undoStack.Push (origRange);
-			else
-				redoStack.Push (origRange);
-
-		}
-			
-		private void Patch(Piece first, Piece second, Piece third)
-		{
-			first.next = second;
-			second.prev = first;
-			second.next = third;
-			third.prev = second;
-		}
-
-		private bool IsAcceptablePos(int pos)
-		{
-			return (pos >= 0 && pos <= numChars);
-		}
-
-		private Tuple<Piece, int, bool> PieceFromPos(int pos)
-		{
-			int currPos = 0;
-			for (Piece curr = head.next; curr != tail; curr = curr.next) {
-				if (currPos + (curr.length - 1) > pos) {
-					return new Tuple<Piece, int, bool> (curr, currPos, false);
-				} else if (currPos + (curr.length - 1) == pos) {
-					return new Tuple<Piece, int, bool> (curr, currPos, true);
-				}
-				currPos += curr.length;
-			}
-
-			return new Tuple<Piece, int, bool> (tail, 0, true);
-
-		}
-			
+					
 		private class PieceRange
 		{
-			public Piece first, last;
+			public Piece first = null; 
+			public Piece last = null;
 			public bool boundary;
 			public int length;
+			public int index;
 
-			public PieceRange(Piece f, Piece l, bool b, int s)
-			{	
-				first = f;
-				last = l;
-				boundary = b;
-				length = s;
+			private PieceRange(int index, int length)
+			{
+				this.index = index;
+				this.length = length;
 			}
 
-			public PieceRange(Piece first, Piece last, bool isBoundary)
+			public PieceRange(int index)
 			{
-				this.first = first;
-				this.last = last;
-				boundary = isBoundary;
 				length = 0;
-				for (Piece curr = first; curr != last.next ; curr = curr.next) {
-					length += curr.length;
+				this.index = -1;
+			}
+
+			public static PieceRange InitUndo(int index, int length)
+			{
+				return new PieceRange (index, length);
+			}
+
+			public void PieceBoundary(Piece before, Piece after)
+			{
+				this.first = before;
+				this.last = after;
+				boundary = true;
+			}
+
+			public void Append(Piece p)
+			{
+				if (p != null) {
+					// first span to be added?
+					if (this.first == null) {
+						first = p;
+					} else {
+						last.next = p;
+						p.prev = last;
+					}
+					last = p;
+					boundary = false;
+
+					length += p.length;
 				}
 			}
+
 		}
 		private class Piece
 		{
@@ -206,7 +267,7 @@ namespace vrim
 			public Piece prev;
 			public int offset, length;
 			public bool inFileBuf;
-
+			  
 			public Piece(int offset, int length, bool inFileBuf)
 			{
 				this.offset = offset;
@@ -217,6 +278,7 @@ namespace vrim
 			}
 		}
 	}
+
 	[TestFixture]
 	public class PieceChainTest
 	{
@@ -237,8 +299,6 @@ namespace vrim
 			chain.Insert (0, inserted);
 			chain.Undo ();
 			Assert.AreEqual (chain.GetContentsTesting(), "");
-			chain.Redo ();
-			Assert.AreEqual (chain.GetContentsTesting (), inserted);
 		}
 
 		[Test]
@@ -264,6 +324,7 @@ namespace vrim
 			PieceChain chain = new PieceChain (new char[] { 'a', 'b', 'c', 'd', 'e' });
 			chain.Insert (3, "12345");
 			chain.Undo ();
+			Assert.AreEqual (chain.GetContentsTesting (), "abcde");
 			chain.Redo ();
 			Assert.AreEqual ("abc12345de", chain.GetContentsTesting ());
 		}
@@ -276,6 +337,8 @@ namespace vrim
 			Assert.AreEqual ("abcde12345", chain.GetContentsTesting ());
 			chain.Undo ();
 			Assert.AreEqual ("abcde", chain.GetContentsTesting());
+			chain.Redo ();
+			Assert.AreEqual ("abcde12345", chain.GetContentsTesting ());
 		}
 
 		[Test]
@@ -286,8 +349,21 @@ namespace vrim
 			Assert.AreEqual ("12345abcde", chain.GetContentsTesting ());
 			chain.Undo ();
 			Assert.AreEqual ("abcde", chain.GetContentsTesting ());
+			chain.Redo ();
+			Assert.AreEqual ("1234abcde", chain.GetContentsTesting ());
 		}
 
+		[Test]
+		public void FullPieceChainInsertMidAndUndoRedo()
+		{
+			PieceChain chain = new PieceChain (new char[] { 'a', 'b', 'c', 'd', 'e' });
+			chain.Insert (3, "12345");
+			Assert.AreEqual ("abc12345de", chain.GetContentsTesting ());
+			chain.Undo ();
+			Assert.AreEqual ("abcde", chain.GetContentsTesting ());
+			chain.Redo ();
+			Assert.AreEqual ("abc12345de", chain.GetContentsTesting ());
+		}
 
 	}
 		

@@ -8,11 +8,9 @@ namespace vrim
 		{
 			Console.WriteLine ("Entrypoint to vrim editor");
 			PieceChain chain = new PieceChain (new char[] { 'a', 'b', 'c', 'd', 'e' });
-			chain.Insert (5, "12345");
-			//chain.Undo ();
-			Console.WriteLine (chain.GetContentsTesting ());
-			chain.Insert (3, "fghij");
-			Console.WriteLine (chain.GetContentsTesting ());
+			chain.Insert (0, "12345");
+			chain.Undo ();
+			chain.Redo ();
 			Console.WriteLine ("it works! maybe...");
 		}
 	}
