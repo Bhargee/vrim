@@ -21,7 +21,7 @@ namespace vrim
 			head = new Piece (0, 0, false);
 			tail = new Piece (0, 0, false);
 			head.next = tail;
-			tail.next = head;
+			tail.prev = head;
 			addBuf = new List<string> ();
 			undoStack = new Stack<PieceRange> ();
 			redoStack = new Stack<PieceRange> ();
@@ -60,8 +60,8 @@ namespace vrim
 			int currPos = pieceAndPos.Item2;
 			if (isBoundary) {
 				Piece insertedPiece = new Piece (addBuf.Count, addition.Length, false);
-				PieceRange newRange = new PieceRange (insertedPiece, insertedPiece, false);
-				PieceRange origRange = new PieceRange (currPiece, currPiece.next, true);
+				PieceRange newRange = new PieceRange (insertedPiece, insertedPiece, true);
+				PieceRange origRange = new PieceRange (currPiece.prev, currPiece, true);
 				SwapPieceRanges (origRange, newRange, true);
 			} else {
 				Piece insertFirst = new Piece(currPiece.offset, pos - currPos, currPiece.inFileBuf);
@@ -92,7 +92,7 @@ namespace vrim
 		{
 			PieceRange stackTop = stack.Pop ();
 			if (stackTop.boundary) {
-				PieceRange boundary = new PieceRange (stackTop.first, stackTop.last, true);
+				PieceRange boundary = new PieceRange (stackTop.first.prev, stackTop.last, true);
 				SwapPieceRanges (boundary, stackTop, false);
 				return;
 			}
@@ -105,7 +105,7 @@ namespace vrim
 		public string GetContentsTesting()
 		{
 			StringBuilder sb = new StringBuilder ("");
-			for (Piece curr = head.next; curr != tail; curr = curr.next) {
+			for (Piece curr = head.next; curr != tail && curr != null; curr = curr.next) {
 				if (curr.inFileBuf) {
 					for (int i = 0; i < curr.length; i++)
 						sb.Append ((fileBuf [curr.offset + i]));
@@ -124,11 +124,14 @@ namespace vrim
 			if (origRange.boundary) {
 				before = origRange.first;
 				after = origRange.last;
-				Piece clone = new Piece (origRange.first.offset, origRange.first.length, origRange.first.inFileBuf);
-				clone.next = origRange.first.next;
-				clone.prev = origRange.last.prev;
+				Piece cloneBefore = new Piece (before.offset, before.length, before.inFileBuf);
+				Piece cloneAfter = new Piece (after.offset, after.length, after.inFileBuf);
+				cloneBefore.next = cloneAfter;
+				cloneAfter.prev = cloneBefore;
+				cloneBefore.prev = before.prev;
+				cloneAfter.next = after.next;
 				Patch (before, newRange.first, after);
-				origRange = new PieceRange (clone, clone, true);
+				origRange = new PieceRange (cloneBefore, cloneAfter, true);
 			} else {
 				before.next = newRange.first;
 				newRange.first.prev = before;
@@ -168,7 +171,7 @@ namespace vrim
 				currPos += curr.length;
 			}
 
-			return new Tuple<Piece, int, bool> (head, 0, true);
+			return new Tuple<Piece, int, bool> (tail, 0, true);
 
 		}
 			
@@ -192,7 +195,7 @@ namespace vrim
 				this.last = last;
 				boundary = isBoundary;
 				length = 0;
-				for (Piece curr = first; curr != last.next; curr = curr.next) {
+				for (Piece curr = first; curr != last.next ; curr = curr.next) {
 					length += curr.length;
 				}
 			}
@@ -266,19 +269,23 @@ namespace vrim
 		}
 
 		[Test]
-		public void FullPieceChainBoundaryInsertBack()
+		public void FullPieceChainBoundaryInsertBackAndUndo()
 		{
 			PieceChain chain = new PieceChain (new char[] { 'a', 'b', 'c', 'd', 'e' });
 			chain.Insert (5, "12345");
-			Assert.AreEqual ("12345abcde", chain.GetContentsTesting ());
+			Assert.AreEqual ("abcde12345", chain.GetContentsTesting ());
+			chain.Undo ();
+			Assert.AreEqual ("abcde", chain.GetContentsTesting());
 		}
 
 		[Test]
-		public void FullPieceChainBoundaryInsertFront()
+		public void FullPieceChainBoundaryInsertFrontAndUndo()
 		{
 			PieceChain chain = new PieceChain (new char[] { 'a', 'b', 'c', 'd', 'e' });
 			chain.Insert (0, "12345");
 			Assert.AreEqual ("12345abcde", chain.GetContentsTesting ());
+			chain.Undo ();
+			Assert.AreEqual ("abcde", chain.GetContentsTesting ());
 		}
 
 
