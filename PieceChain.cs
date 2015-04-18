@@ -66,19 +66,21 @@ namespace vrim
 			if (insOffset == 0) {
 				oldRange = PieceRange.InitUndo (pos, toInsert.Length);
 				oldRange.PieceBoundary (piece.prev, piece);
+				undoStack.Push (oldRange);
 				PieceRange newRange = new PieceRange (pos);
 				newRange.Append (new Piece (addBuf.Count - 1, toInsert.Length, false));
 				SwapPieceRange (oldRange, newRange);
 			} else {
 				oldRange = PieceRange.InitUndo (pos, toInsert.Length);
 				oldRange.Append (piece);
+				undoStack.Push (oldRange);
+
 				PieceRange newRange = new PieceRange (pos);
 				newRange.Append (new Piece (piece.offset, insOffset, true));
 				newRange.Append (new Piece (addBuf.Count - 1, toInsert.Length, false));
 				newRange.Append (new Piece (piece.offset + insOffset, piece.length - insOffset, true));
 				SwapPieceRange (oldRange, newRange);
 			}
-			undoStack.Push (oldRange);
 			textLength += toInsert.Length;
 			return true;
 
@@ -103,9 +105,9 @@ namespace vrim
 				PieceRange toRestore = src.Pop ();
 				dest.Push (toRestore);
 
-				bool undoOrRedo = (src == undoStack);
+				bool undo = (src == undoStack);
 
-				RestorePieceRange (toRestore, undoOrRedo);
+				RestorePieceRange (toRestore, undo);
 			} while (src.Count != 0);
 
 			return true;
@@ -113,7 +115,7 @@ namespace vrim
 
 		private void RestorePieceRange(PieceRange toRestore, bool undoOrRedo)
 		{
-			if(toRestore.boundary) {
+			if(toRestore.boundary && (toRestore.last.next != tail || toRestore.first.prev == null)) {
 				Piece first = toRestore.first.next;
 				Piece last = toRestore.last.prev;
 
@@ -152,6 +154,49 @@ namespace vrim
 				}
 			}
 			// TODO update length
+		}
+
+		public bool Delete(int pos, int length)
+		{
+			if (length == 0 || length > textLength || pos > textLength - length)
+				return false;
+			Tuple<Piece, int> pp = PieceFromPos (pos);
+			Piece piece = pp.Item1;
+			int piecePos = pp.Item2;
+
+			if (piece == null)
+				return false;
+			int remOffset = pos - piecePos;
+			int removeLen = length;
+
+			PieceRange newRange = new PieceRange (pos);
+			PieceRange oldRange = new PieceRange (pos);
+			if (remOffset != 0) {
+				newRange.Append (new Piece (piece.offset, remOffset, piece.inFileBuf));
+				if (remOffset + removeLen < piece.length) {
+					newRange.Append (new Piece (
+						piece.offset + remOffset + removeLen,
+						piece.length - remOffset - removeLen,
+						piece.inFileBuf));
+				}
+				removeLen -= Math.Min (removeLen, (piece.length - remOffset));
+				oldRange.Append (piece);
+				piece = piece.next;
+			}
+			while (removeLen > 0 && piece != tail) {
+				if (removeLen < piece.length) {
+					newRange.Append (new Piece (
+						piece.offset + removeLen,
+						piece.length - removeLen,
+						piece.inFileBuf));
+				}
+				removeLen -= Math.Min (removeLen, piece.length);
+				oldRange.Append (piece);
+				piece = piece.next;
+			}
+			SwapPieceRange (oldRange, newRange);
+			textLength -= length;
+			return true;
 		}
 
 		private void SwapPieceRange(PieceRange oldRange, PieceRange newRange)
@@ -276,6 +321,7 @@ namespace vrim
 				next = null;
 				prev = null;
 			}
+
 		}
 	}
 
@@ -350,7 +396,7 @@ namespace vrim
 			chain.Undo ();
 			Assert.AreEqual ("abcde", chain.GetContentsTesting ());
 			chain.Redo ();
-			Assert.AreEqual ("1234abcde", chain.GetContentsTesting ());
+			Assert.AreEqual ("12345abcde", chain.GetContentsTesting ());
 		}
 
 		[Test]
@@ -363,6 +409,25 @@ namespace vrim
 			Assert.AreEqual ("abcde", chain.GetContentsTesting ());
 			chain.Redo ();
 			Assert.AreEqual ("abc12345de", chain.GetContentsTesting ());
+		}
+
+		[Test]
+		public void DeleteMiddle()
+		{
+			PieceChain chain = new PieceChain (new char[] { 'a', 'b', 'c', 'd', 'e' });
+			chain.Delete (2, 2);
+			Assert.AreEqual (chain.GetContentsTesting (), "abe");
+			chain.Undo ();
+			Assert.AreEqual (chain.GetContentsTesting (), "abcde");
+		}
+		[Test]
+		public void DeleteBeginningUndoRedo()
+		{
+			PieceChain chain = new PieceChain (new char[] { 'a', 'b', 'c', 'd', 'e' });
+			chain.Delete (0, 2);
+			Assert.AreEqual (chain.GetContentsTesting (), "cde");
+			chain.Undo ();
+			Assert.AreEqual (chain.GetContentsTesting (), "abcde");
 		}
 
 	}

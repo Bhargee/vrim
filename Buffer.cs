@@ -11,27 +11,41 @@ namespace vrim
 	 */
 	public class Buffer
 	{
-		private PieceChain _chain;
-		private string _filename;
+		private PieceChain chain;
+		private string filename;
+		private int lineLen =  40;
+		private int cursor = 0;
+
+		private enum Movement {Down, Up, Left, Right};
 
 		public Buffer()
 		{
-			_chain = new PieceChain ();
-			_filename = null;
+			chain = new PieceChain ();
+			filename = null;
 		}
 
 		public Buffer(string filename)
 		{
-			_filename = filename;
+			this.filename = filename;
 			char[] f;
 			try {
-				f = System.Text.Encoding.UTF8.GetString(File.ReadAllBytes(_filename)).ToCharArray();
+				f = System.Text.Encoding.UTF8.GetString(File.ReadAllBytes(filename)).ToCharArray();
 			} catch(FileNotFoundException) {
-				_chain = new PieceChain ();
+				chain = new PieceChain ();
 				return;
 			}
-			f = new char[0];
-			_chain = new PieceChain (f);
+			chain = new PieceChain (f);
+		}
+
+		public void Insert(string toInsert)
+		{
+			if (chain.Insert (cursor, toInsert))
+				cursor += toInsert.Length;
+		}
+
+		public void Delete(int length)
+		{
+			chain.Delete (cursor, length);
 		}
 	}
 
